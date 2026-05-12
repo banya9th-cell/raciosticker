@@ -6,64 +6,76 @@
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
         #overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); color: white; z-index: 10;
+            background: rgba(0,0,0,0.9); color: #00ff00; z-index: 10;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            cursor: pointer; text-align: center;
+            cursor: pointer; text-align: center; padding: 20px;
         }
-        .btn { padding: 20px 40px; background: #2ecc71; border-radius: 50px; font-weight: bold; font-size: 20px; }
+        .btn { padding: 15px 30px; border: 2px solid #00ff00; background: none; color: #00ff00; font-weight: bold; font-size: 20px; }
     </style>
 </head>
 <body>
     <div id="overlay">
-        <div class="btn">ЗАПУСТИТИ AR-СТІКЕРИ</div>
-        <p style="margin-top: 15px;">Натисни тут і наводь камеру на стікери</p>
+        <div class="btn">ЗАПУСТИТИ СКАНЕР ПОРУШНИКІВ</div>
+        <p>Увімкни фронтальну камеру, коли запитає</p>
     </div>
+
+    <video id="selfieVideo" playsinline style="display:none"></video>
 
     <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiScanning: no;" 
              color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
              vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         
-        <a-assets>
-            <video id="vid-0" src="./1.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline webkit-playsinline></video>
-            <video id="vid-1" src="./2.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline webkit-playsinline></video>
-            <video id="vid-2" src="./3.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline webkit-playsinline></video>
-            <video id="vid-3" src="./4.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline webkit-playsinline></video>
-        </a-assets>
-
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 0"><a-video src="#vid-0" width="1" height="1.78" position="0 0 0"></a-video></a-entity>
-        <a-entity mindar-image-target="targetIndex: 1"><a-video src="#vid-1" width="1" height="1.78" position="0 0 0"></a-video></a-entity>
-        <a-entity mindar-image-target="targetIndex: 2"><a-video src="#vid-2" width="1" height="1.78" position="0 0 0"></a-video></a-entity>
-        <a-entity mindar-image-target="targetIndex: 3"><a-video src="#vid-3" width="1" height="1.78" position="0 0 0"></a-video></a-entity>
+        <a-entity id="target" mindar-image-target="targetIndex: 0">
+            <a-plane color="#ff0000" width="1.05" height="1.55" position="0 0 0"></a-plane>
+            
+            <a-video id="mirror-plane" width="1" height="1.5" position="0 0 0.01"></a-video>
+            
+            <a-entity position="0 0.9 0.1">
+                <a-plane color="black" width="1.2" height="0.3" opacity="0.8"></a-plane>
+                <a-text id="random-text" value="ШУКАЮ ПОРУШНИКА..." color="yellow" align="center" width="2"></a-text>
+            </a-entity>
+        </a-entity>
     </a-scene>
 
     <script>
-        const overlay = document.getElementById('overlay');
-        const videos = [
-            document.getElementById('vid-0'),
-            document.getElementById('vid-1'),
-            document.getElementById('vid-2'),
-            document.getElementById('vid-3')
+        const phrases = [
+            "ШТРАФ: 500 грн (БЕЗ КАСКИ)",
+            "ПОРУШНИК ТИЖНЯ!",
+            "ДЕ ЖУРНАЛ ІНСТРУКТАЖУ?!",
+            "БОНУС: +1 ДЕНЬ ДО ВІДПУСТКИ",
+            "ВИПИЙ КАВИ ТА ВДЯГНИ ЖИЛЕТ",
+            "ГОЛОВНИЙ ІНЖЕНЕР ПИШАЄТЬСЯ ТОБОЮ",
+            "ОБЕРЕЖНО: ГЕНІЙ ОХОРОНИ ПРАЦІ"
         ];
+
+        const overlay = document.getElementById('overlay');
+        const selfieVideo = document.getElementById('selfieVideo');
+        const mirrorPlane = document.getElementById('mirror-plane');
+        const randomText = document.getElementById('random-text');
+        const target = document.getElementById('target');
 
         overlay.addEventListener('click', () => {
             overlay.style.display = 'none';
-            // Це розблоковує звук у браузері
-            videos.forEach(v => { 
-                v.muted = false;
-                v.play().then(() => v.pause()); 
-            });
+            
+            // Запускаємо селфі-камеру
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+            .then(stream => {
+                selfieVideo.srcObject = stream;
+                selfieVideo.play();
+                mirrorPlane.setAttribute('src', '#selfieVideo');
+            })
+            .catch(err => alert("Потрібен доступ до фронтальної камери!"));
         });
 
-        const sceneEl = document.querySelector('a-scene');
-        videos.forEach((video, index) => {
-            const target = document.querySelectorAll('a-entity[mindar-image-target]')[index];
-            target.addEventListener("targetFound", () => { video.play(); });
-            target.addEventListener("targetLost", () => { video.pause(); });
+        // Коли знайшли стікер - міняємо фразу
+        target.addEventListener("targetFound", () => {
+            const randomIndex = Math.floor(Math.random() * phrases.length);
+            randomText.setAttribute('value', phrases[randomIndex]);
         });
     </script>
 </body>
